@@ -6,14 +6,11 @@ services:
     plan: free
     region: oregon
 
-    # PIN THE PYTHON VERSION:
+    # ← Pin to a version that has binary wheels for pandas, numpy, scikit-learn, etc.
     pythonVersion: 3.11.10
 
-    # point Render at the folder where your Flask app lives:
+    # ← point at your Flask app & requirements
     rootDirectory: .
 
-    # install your Python deps:
     buildCommand: pip install -r requirements.txt
-
-    # launch your Flask app (app = Flask(__name__)):
     startCommand: gunicorn ml_pipeline:app
