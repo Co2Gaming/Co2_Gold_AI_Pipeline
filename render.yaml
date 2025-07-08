@@ -1,19 +1,13 @@
 # render.yaml
 services:
-  - type: web             # <-- use "web" here, not "web_service"
+  - type: web
     name: fx-ai-pipeline
     env: python
     plan: free
     region: oregon
 
-    # Pin to a version that has wheels for pandas, numpy, scikit-learn, etc.
-    pythonVersion: 3.11.10
-
-    # Point at where your Flask app and requirements live
-    rootDirectory: .
-
-    # Install via pip (not Poetry)
+    # install your deps
     buildCommand: pip install -r requirements.txt
 
-    # How to launch your Flask app
+    # launch your Flask app
     startCommand: gunicorn ml_pipeline:app
