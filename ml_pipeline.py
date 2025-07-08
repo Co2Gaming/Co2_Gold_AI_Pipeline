@@ -1,6 +1,10 @@
 import os
 import openai
+import logging
 from flask import Flask, request, jsonify
+
+# Configure structured logging to be visible in Render
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -9,12 +13,17 @@ app = Flask(__name__)
 # The API key is read securely from the OPENAI_API_KEY environment variable.
 try:
     client = openai.OpenAI()
-    print("OpenAI client initialized successfully.")
+    logging.info("OpenAI client initialized successfully.")
 except openai.OpenAIError as e:
     # This helps diagnose if the API key is missing during startup.
-    print(f"Error initializing OpenAI client: {e}")
-    print("Chat endpoint will be disabled.")
+    logging.error(f"Error initializing OpenAI client: {e}", exc_info=True)
+    logging.warning("Chat endpoint will be disabled.")
     client = None
+
+@app.route("/")
+def index():
+    """A simple welcome message for the root endpoint."""
+    return jsonify({"message": "Welcome to the FX AI Pipeline! Use the /chat endpoint to interact."})
 
 @app.route("/healthz")
 def health_check():
@@ -41,6 +50,9 @@ def chat_with_gpt():
         reply = resp.choices[0].message.content
         return jsonify({"reply": reply})
     except openai.APIError as e:
-        return jsonify({"error": f"OpenAI API error: {e}"}), 500
+        # Log the detailed error for debugging, but return a generic message to the user.
+        logging.error(f"OpenAI API error occurred: {e}", exc_info=True)
+        return jsonify({"error": "An error occurred while communicating with the OpenAI API."}), 500
     except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+        logging.error(f"An unexpected error occurred in /chat endpoint: {e}", exc_info=True)
+        return jsonify({"error": "An unexpected server error occurred."}), 500
