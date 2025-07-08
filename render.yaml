@@ -6,11 +6,11 @@ services:
     plan: free
     region: oregon
 
-    # point Render into this folder (where ml_pipeline.py lives)
+    # point Render at the folder where your Flask app lives:
     rootDirectory: .
 
-    # install dependencies
+    # install your Python deps:
     buildCommand: pip install -r requirements.txt
 
-    # start your Flask app (app = Flask(__name__))
+    # launch your Flask app (app = Flask(__name__)):
     startCommand: gunicorn ml_pipeline:app
