@@ -6,11 +6,14 @@ services:
     plan: free
     region: oregon
 
-    # ← Pin to a version that has binary wheels for pandas, numpy, scikit-learn, etc.
+    # ← Pin to a version that has wheels for pandas, numpy, etc.
     pythonVersion: 3.11.10
 
-    # ← point at your Flask app & requirements
+    # ← Point at where your Flask app & requirements live
     rootDirectory: .
 
+    # ← Install via pip (not Poetry)
     buildCommand: pip install -r requirements.txt
+
+    # ← How to launch your Flask app
     startCommand: gunicorn ml_pipeline:app
