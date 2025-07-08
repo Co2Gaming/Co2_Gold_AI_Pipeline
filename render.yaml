@@ -4,7 +4,10 @@ services:
     env: python
     plan: free
     region: oregon
+    autoDeploy: true
 
+    healthCheckPath: /healthz
+    initialDelaySeconds: 30
     rootDirectory: .
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn ml_pipeline:app
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT ml_pipeline:app
