@@ -1,0 +1,16 @@
+# render.yaml
+services:
+  - type: web_service
+    name: fx-ai-pipeline
+    env: python
+    plan: free
+    region: oregon
+
+    # point Render into this folder (where ml_pipeline.py lives)
+    rootDirectory: .
+
+    # install dependencies
+    buildCommand: pip install -r requirements.txt
+
+    # start your Flask app (app = Flask(__name__))
+    startCommand: gunicorn ml_pipeline:app
