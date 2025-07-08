@@ -5,6 +5,13 @@ services:
     plan: free
     region: oregon
 
+<<<<<<< HEAD
+=======
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.10.11"
+
+>>>>>>> 2c2b5ee65ee34be12fa0f4a50db15eed35f09720
     rootDirectory: .
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn ml_pipeline:app
