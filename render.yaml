@@ -5,14 +5,14 @@ services:
     env: python
     plan: free
     region: oregon
+    autoDeploy: true
 
-    # pin Python via an env var
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.10"
+      - key: OPENAI_API_KEY
+        fromSecret: true
 
-    # pip (not Poetry) install
+    healthCheckPath: /healthz
+    rootDirectory: .
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
 
-    # start your Flask app
     startCommand: gunicorn --bind 0.0.0.0:$PORT ml_pipeline:app

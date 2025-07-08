@@ -1,51 +1,44 @@
-import json
-from flask import Flask, jsonify
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+import os
+import openai
+from flask import Flask, request, jsonify
 
+# Initialize Flask app
 app = Flask(__name__)
 
-CSV_URL = "https://raw.githubusercontent.com/datasets/gold-prices/master/data/monthly.csv"
+# Configure the OpenAI client.
+# The API key is read securely from the OPENAI_API_KEY environment variable.
+try:
+    client = openai.OpenAI()
+except openai.OpenAIError as e:
+    # This helps diagnose if the API key is missing during startup.
+    print(f"Error initializing OpenAI client: {e}")
+    client = None
 
-@app.route("/ai_input.json")
-def generate_signal():
+@app.route("/healthz")
+def health_check():
+    """Health check endpoint for Render to ensure the service is running."""
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/chat", methods=["POST"])
+def chat_with_gpt():
+    """Accepts a prompt and returns a response from OpenAI's chat model."""
+    if not client:
+        return jsonify({"error": "OpenAI client not initialized. Check API key."}), 503
+
+    prompt = request.json.get("prompt", "")
+    if not prompt:
+        return jsonify({"error": "Please include a JSON body with a `prompt` field"}), 400
+
     try:
-        df = pd.read_csv(CSV_URL)
-
-        # Prepare simple ML features
-        df = df.tail(50).copy()
-        df["Price_Change"] = df["Price"].diff()
-        df["Direction"] = df["Price_Change"].apply(lambda x: 1 if x > 0 else 0)
-        df["Lag1"] = df["Price"].shift(1)
-        df["Lag2"] = df["Price"].shift(2)
-        df.dropna(inplace=True)
-
-        X = df[["Lag1", "Lag2"]]
-        y = df["Direction"]
-
-        model = RandomForestClassifier()
-        model.fit(X, y)
-
-        latest = df.iloc[-1][["Lag1", "Lag2"]].values.reshape(1, -2)
-        pred = model.predict(latest)[0]
-        conf = model.predict_proba(latest).max()
-
-        recommendation = "buy" if pred == 1 else "sell"
-
-        result = {
-            "recommendation": recommendation,
-            "confidence": round(float(conf), 4),
-            "top_feature": "Lag2"
-        }
-
-        with open("static/ai_input.json", "w") as f:
-            json.dump(result, f)
-
-        return jsonify(result)
-
+        # Using the modern OpenAI SDK for chat completions
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+        )
+        reply = resp.choices[0].message.content
+        return jsonify({"reply": reply})
+    except openai.APIError as e:
+        return jsonify({"error": f"OpenAI API error: {e}"}), 500
     except Exception as e:
-        return jsonify({"error": str(e)})
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
