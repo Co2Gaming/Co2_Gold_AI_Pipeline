@@ -9,9 +9,11 @@ app = Flask(__name__)
 # The API key is read securely from the OPENAI_API_KEY environment variable.
 try:
     client = openai.OpenAI()
+    print("OpenAI client initialized successfully.")
 except openai.OpenAIError as e:
     # This helps diagnose if the API key is missing during startup.
     print(f"Error initializing OpenAI client: {e}")
+    print("Chat endpoint will be disabled.")
     client = None
 
 @app.route("/healthz")
