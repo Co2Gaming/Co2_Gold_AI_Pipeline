@@ -1,13 +1,18 @@
+# render.yaml
 services:
   - type: web
     name: fx-ai-pipeline
     env: python
     plan: free
     region: oregon
-    autoDeploy: true
 
-    healthCheckPath: /healthz
-    initialDelaySeconds: 30
-    rootDirectory: .
+    # pin Python via an env var
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.10"
+
+    # pip (not Poetry) install
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+
+    # start your Flask app
     startCommand: gunicorn --bind 0.0.0.0:$PORT ml_pipeline:app
