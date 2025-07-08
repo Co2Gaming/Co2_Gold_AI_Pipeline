@@ -2,11 +2,3 @@ Flask==2.3.2
 pandas==2.1.0
 scikit-learn==1.2.2
 gunicorn==20.1.0
-
-services:
-  - type: web
-    name: fx-ai-pipeline
-    env: python
-    pythonVersion: 3.11.10          # ← pin here
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn ml_pipeline:app
