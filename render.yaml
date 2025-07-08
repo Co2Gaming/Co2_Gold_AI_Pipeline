@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: fx-ai-pipeline
+    env: python
+    plan: free
+    region: oregon
+
+    rootDirectory: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn ml_pipeline:app
