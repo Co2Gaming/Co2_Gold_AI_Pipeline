@@ -6,6 +6,9 @@ services:
     plan: free
     region: oregon
 
+    # PIN THE PYTHON VERSION:
+    pythonVersion: 3.11.10
+
     # point Render at the folder where your Flask app lives:
     rootDirectory: .
 
