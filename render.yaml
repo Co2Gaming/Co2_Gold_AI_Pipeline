@@ -5,9 +5,5 @@ services:
     env: python
     plan: free
     region: oregon
-
-    # install your deps
     buildCommand: pip install -r requirements.txt
-
-    # launch your Flask app
     startCommand: gunicorn ml_pipeline:app
