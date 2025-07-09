@@ -7,19 +7,33 @@ services:
     autoDeploy: true
 
     envVars:
-      - key: OPENAI_API_KEY
+      - key: MT5_TERMINAL_PATH
+        value: "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
+      - key: MT5_SERVER
+        fromSecret: true
+      - key: MT5_LOGIN
+        fromSecret: true
+      - key: MT5_PASSWORD
+        fromSecret: true
+      - key: SYMBOL
+        value: "XAUUSD"
+      - key: TIMEFRAME
+        value: "TIMEFRAME_H1"
+      - key: AWS_KEY
+        fromSecret: true
+      - key: AWS_SECRET
+        fromSecret: true
+      - key: S3_BUCKET
         fromSecret: true
 
     healthCheckPath: /healthz
     initialDelaySeconds: 30
     rootDirectory: .
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn --workers 1 --threads 4 --bind 0.0.0.0:$PORT --access-logfile - --error-logfile - ml_pipeline:app
+    startCommand: gunicorn --workers 1 --threads 4 --bind 0.0.0.0:$PORT ml_pipeline:app
 
-# New cron job to retrain the model every hour
 jobs:
   - type: cron
     name: retrain-model
     schedule: "0 * * * *"
-    command: |
-      curl -s https://fx-ai-pipeline-drcc.onrender.com/train
+    command: curl -s https://<YOUR-RENDER-URL>/train
