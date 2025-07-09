@@ -1,19 +1,10 @@
-# numerical core (pick up the 1.26-series wheel on 3.12+)
-numpy>=1.26,<2.0
-
 Flask>=2.3.3
 waitress>=2.1.2
 gunicorn>=22.0.0
-
-# build backends to ensure wheels can be built/found
-setuptools>=65.5.0
-wheel>=0.38.0
-
-pandas>=2.2.2
-scikit-learn>=1.4.2
-xgboost>=1.7.6
-joblib>=1.5.1
-boto3>=1.26.0
-
-# only install MT5 on Windows
-MetaTrader5>=5.0.5120; sys_platform == "win32"
+numpy>=1.24
+pandas>=2.2
+scikit-learn>=1.4
+xgboost>=1.7
+MetaTrader5>=5.0.47; platform_system == "Windows"
+yfinance>=0.2.18
+boto3>=1.26  # optional, only if you’re using S3
