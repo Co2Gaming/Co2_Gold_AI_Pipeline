@@ -7,13 +7,29 @@ services:
     region: oregon
     autoDeploy: true
 
+    # your environment variables
     envVars:
       - key: OPENAI_API_KEY
         fromSecret: true
 
+    # health check, build & start commands
     healthCheckPath: /healthz
     initialDelaySeconds: 30
     rootDirectory: .
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: >
+      gunicorn
+        --workers 1
+        --threads 4
+        --bind 0.0.0.0:$PORT
+        --access-logfile -
+        --error-logfile -
+        ml_pipeline:app
 
-    startCommand: gunicorn --workers 1 --threads 4 --bind 0.0.0.0:$PORT --access-logfile - --error-logfile - ml_pipeline:app
+jobs:
+  - type: cron
+    name: retrain-model
+    # every hour on the hour
+    schedule: "0 * * * *"
+    # hit your Flask /train endpoint in the background
+    command: curl -s https://fx-ai-pipeline.onrender.com/train
