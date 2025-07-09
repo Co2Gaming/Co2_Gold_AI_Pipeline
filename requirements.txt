@@ -1,11 +1,10 @@
- Flask==2.3.3
- pandas==2.2.2
- scikit-learn==1.4.2
- gunicorn==22.0.0
- openai==1.35.13
- httpx==0.27.0
--
--+MetaTrader5==5.0.38
-+MetaTrader5==5.0.38
-+xgboost==1.7.6        # if you train/models
-+numpy==1.25.0         # required by your feature code
+Flask==2.3.3
+waitress==2.1.2            # needed if you ever run via waitress locally
+gunicorn==22.0.0          # for Render’s startCommand
+numpy==1.25.2
+pandas==2.2.2
+scikit-learn==1.4.2
+xgboost==1.7.6
+MetaTrader5==5.0.38
+boto3==1.28.57
+joblib==1.4.1
