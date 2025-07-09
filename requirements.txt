@@ -1,13 +1,11 @@
 Flask>=2.3.3
 waitress>=2.1.2
 gunicorn>=22.0.0
-
-numpy>=1.25.2
+numpy==1.25.2
 pandas>=2.2.2
 scikit-learn>=1.4.2
 xgboost>=1.7.6
-joblib>=1.3.2
-
+joblib>=1.5.1
 boto3>=1.26.0
-# MetaTrader5 only on Windows local dev; Render will skip it
+# install MetaTrader5 only on Windows hosts
 MetaTrader5>=5.0.5120; sys_platform == "win32"
