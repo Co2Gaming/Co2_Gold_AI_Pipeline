@@ -5,17 +5,16 @@ import logging
 import numpy   as np
 import pandas  as pd
 import xgboost as xgb
-import boto3
 
-# MetaTrader5 only available on Windows
+# ─── Guard MT5 import ─────────────────────────────────────────────────────
 try:
     import MetaTrader5 as mt5
 except ImportError:
     mt5 = None
-    logging.warning("MetaTrader5 module not installed; MT5 data fetches will fail on this platform.")
+    logging.warning("MetaTrader5 module not installed; MT5 data fetches will fail")
 
-from flask                     import Flask, jsonify
-from sklearn.model_selection   import TimeSeriesSplit
+from flask import Flask, jsonify
+from sklearn.model_selection import TimeSeriesSplit
 
 # — configure logging —
 logging.basicConfig(
@@ -31,40 +30,38 @@ AWS_SECRET = os.getenv("AWS_SECRET")
 BUCKET     = os.getenv("S3_BUCKET")
 MODEL_KEY  = "models/xgb_model.pkl"
 LOCAL_PATH = "/tmp/xgb_model.pkl"
- 
+
 s3_client = None
-if all([AWS_KEY, AWS_SECRET, BUCKET]):
+if AWS_KEY and AWS_SECRET and BUCKET:
+    import boto3
     s3_client = boto3.client(
         "s3",
         aws_access_key_id=AWS_KEY,
         aws_secret_access_key=AWS_SECRET
     )
 else:
-    logging.warning("S3 credentials not found. File operations will be skipped.")
- 
+    logging.warning("S3 credentials not found; skipping S3 uploads/downloads")
+
 def upload_model():
-    if not s3_client:
-        return False
+    if not s3_client: return False
     s3_client.upload_file(LOCAL_PATH, BUCKET, MODEL_KEY)
     logging.info("Model uploaded to S3 bucket %s", BUCKET)
     return True
- 
+
 def download_model():
-    if not s3_client:
-        return False
+    if not s3_client: return False
     try:
         s3_client.download_file(BUCKET, MODEL_KEY, LOCAL_PATH)
+        logging.info("Model downloaded from S3")
         return True
     except Exception as e:
-        logging.warning("Failed to download model from S3: %s", e.__class__.__name__)
+        logging.warning("Failed to download model from S3: %s", e)
         return False
 
 # ─── INITIAL MODEL LOAD ──────────────────────────────────────────────────
 logging.info("Attempting to download initial model from S3...")
-if download_model():
-    logging.info("Model successfully downloaded and loaded at startup.")
-else:
-    logging.warning("Could not download model at startup. The /train endpoint must be called first.")
+if not download_model():
+    logging.warning("No model found locally; call /train first")
 
 # ─── MT5 CONFIG ──────────────────────────────────────────────────────────
 MT5_SERVER    = os.getenv("MT5_SERVER")
@@ -72,9 +69,9 @@ MT5_LOGIN_STR = os.getenv("MT5_LOGIN")
 MT5_LOGIN     = int(MT5_LOGIN_STR) if MT5_LOGIN_STR and MT5_LOGIN_STR.isdigit() else None
 MT5_PASSWORD  = os.getenv("MT5_PASSWORD")
 SYMBOL        = os.getenv("SYMBOL", "XAUUSD")
-TIMEFRAME     = getattr(mt5, os.getenv("TIMEFRAME", "TIMEFRAME_H1")) if mt5 else None
+TIMEFRAME     = getattr(mt5, os.getenv("TIMEFRAME", "TIMEFRAME_H1"), None)
 
-# ─── FEATURE ENGINEERING (stubs) ─────────────────────────────────────────
+# ─── FEATURE ENGINEERING (stubs) ────────────────────────────────────────
 def add_fvg_features(df): ...
 def add_trailing_sl(df, period=14, multiplier=1.5): ...
 def add_supply_demand(df, window=20): ...
@@ -88,34 +85,30 @@ def build_features(df):
     df = label_signals(df)
     return df.dropna()
 
-# ─── DATA FETCHING ────────────────────────────────────────────────────────
+# ─── DATA FETCHING ──────────────────────────────────────────────────────
 def fetch_ohlc(symbol, timeframe, lookback):
-    if mt5 is None:
-        raise RuntimeError("MT5 module not available on this platform")
-    if not all([MT5_SERVER, MT5_LOGIN, MT5_PASSWORD]) or not mt5.initialize(
-        server=MT5_SERVER, login=MT5_LOGIN, password=MT5_PASSWORD
-    ):
-        raise RuntimeError("MT5 init failed")
+    if mt5 is None or not mt5.initialize(server=MT5_SERVER, login=MT5_LOGIN, password=MT5_PASSWORD):
+        raise RuntimeError("MT5 initialization failed")
     rates = mt5.copy_rates_from_pos(symbol, timeframe, 1, lookback)
     mt5.shutdown()
     df = pd.DataFrame(rates)
     df["time"] = pd.to_datetime(df["time"], unit="s")
     df.set_index("time", inplace=True)
-    return df[["open","high","low","close","tick_volume"]]
+    return df[["open", "high", "low", "close", "tick_volume"]]
 
 feature_cols = [
-    "return","fvg_up","fvg_down","tsl",
-    "dist_supply","dist_demand"
+    "return", "fvg_up", "fvg_down", "tsl",
+    "dist_supply", "dist_demand"
 ]
 
-# ─── RE-TRAIN ENDPOINT ──────────────────────────────────────────────────
+# ─── TRAINING ENDPOINT ───────────────────────────────────────────────────
 @app.route("/train", methods=["POST"])
 def train():
     try:
         df = fetch_ohlc(SYMBOL, TIMEFRAME, lookback=5000)
     except RuntimeError as e:
-        logging.error("Failed to fetch data from MT5 during training: %s", e)
-        return jsonify({"error": "MT5 connection failed", "details": str(e)}), 503
+        logging.error("MT5 fetch failed: %s", e)
+        return jsonify({"error": "MT5 connection failed"}), 503
 
     df_feat = build_features(df)
     X = df_feat[feature_cols]
@@ -133,45 +126,43 @@ def train():
 
     joblib.dump(model, LOCAL_PATH)
     upload_model()
+
     return jsonify({"status": "retrained"}), 200
 
-# ─── SIGNAL ENDPOINT ────────────────────────────────────────────────────
+# ─── SIGNAL ENDPOINT ───────────────────────────────────────────────────
 @app.route("/signal.json", methods=["GET"])
 def signal():
     if not os.path.exists(LOCAL_PATH):
-        logging.error("Model file not found. Must train first.")
-        return jsonify({"error": "Model not available"}), 503
-
+        return jsonify({"error": "Model not found; train first"}), 503
     model = joblib.load(LOCAL_PATH)
+
     try:
         df = fetch_ohlc(SYMBOL, TIMEFRAME, lookback=1000)
     except RuntimeError as e:
-        logging.error("MT5 fetch failed: %s", e)
-        return jsonify({"error": "MT5 connection failed", "details": str(e)}), 503
+        return jsonify({"error": "MT5 connection failed"}), 503
 
     df_feat = build_features(df).tail(1)
     X_latest = df_feat[feature_cols]
+
     proba = model.predict_proba(X_latest)[0]
     labels = {0: "sell", 1: "hold", 2: "buy"}
 
-    response = {
-        "symbol":    SYMBOL,
+    return jsonify({
+        "symbol": SYMBOL,
         "timestamp": df_feat.index[0].isoformat(),
-        "signal":    labels[int(np.argmax(proba))],
+        "signal": labels[int(np.argmax(proba))],
         "probabilities": {
-            "sell": round(float(proba[0]),4),
-            "hold": round(float(proba[1]),4),
-            "buy":  round(float(proba[2]),4)
+            "sell":  round(float(proba[0]), 4),
+            "hold":  round(float(proba[1]), 4),
+            "buy":   round(float(proba[2]), 4)
         }
-    }
-    logging.info("Generated signal: %s", response)
-    return jsonify(response), 200
+    }), 200
 
-# ─── HEALTH CHECK ───────────────────────────────────────────────────────
+# ─── HEALTHCHECK ───────────────────────────────────────────────────────
 @app.route("/healthz", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
-    from waitress import serve
-    serve(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+    # development server
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
